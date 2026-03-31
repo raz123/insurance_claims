@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('App Version: 1.1');
+    console.log('App Version: 1.1.5');
     const settingsBtn = document.getElementById('settings-btn');
     const settingsModal = document.getElementById('settings-modal');
     const saveSettingsBtn = document.getElementById('save-settings-btn');
@@ -121,7 +121,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function runWebWorkerAI(engine) {
         if (!ocrWorker) {
-             ocrWorker = new Worker('worker.js?v=glm-custom-v1', { type: 'module' });
+             console.log('[App] Instantiating custom GLM worker...');
+             ocrWorker = new Worker('worker.js?v=v1.1.5', { type: 'module' });
+             
+             ocrWorker.onerror = (err) => {
+                console.error('[App] Worker failed to load or experienced a top-level error:', err);
+             };
         }
 
         loadingText.innerText = "Initializing Local AI Inference...";
