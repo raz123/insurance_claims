@@ -1,9 +1,28 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // --- PIN LOCK LOGIC (4321) ---
+    // --- 1. DOM ELEMENT SELECTIONS ---
     const pinOverlay = document.getElementById('pin-overlay');
     const appContent = document.getElementById('app-content');
     const dots = document.querySelectorAll('.dot');
     const numBtns = document.querySelectorAll('.num-btn');
+    
+    const settingsBtn = document.getElementById('settings-btn');
+    const settingsModal = document.getElementById('settings-modal');
+    const saveSettingsBtn = document.getElementById('save-settings-btn');
+    const engineSelect = document.getElementById('engine-select');
+    const scriptUrlInput = document.getElementById('apps-script-url');
+    
+    const imagePreviewArea = document.getElementById('image-preview');
+    const cameraInput = document.getElementById('camera-input');
+    const receiptImg = document.getElementById('receipt-img');
+    const placeholder = document.getElementById('preview-placeholder');
+    const processBtn = document.getElementById('process-ocr-btn');
+    
+    const loadingIndicator = document.getElementById('loading-indicator');
+    const loadingText = document.getElementById('loading-text');
+    const submitBtn = document.getElementById('submit-claim-btn');
+    const claimForm = document.getElementById('claim-form');
+
+    // --- 2. PIN LOCK LOGIC (4321) ---
     const CORRECT_PIN = '4321';
     let enteredPin = '';
 
@@ -62,13 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
         loadSettings();
     }
 
-    // --- SETTINGS LOGIC ---
-    const settingsBtn = document.getElementById('settings-btn');
-    const settingsModal = document.getElementById('settings-modal');
-    const saveSettingsBtn = document.getElementById('save-settings-btn');
-    const engineSelect = document.getElementById('engine-select');
-    const scriptUrlInput = document.getElementById('apps-script-url');
-
+    // --- 3. SETTINGS LOGIC ---
     settingsBtn.addEventListener('click', () => {
         settingsModal.classList.add('active');
     });
@@ -87,7 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function loadSettings() {
-        const savedEngine = localStorage.getItem('ocrEngine') || 'florence';
+        const savedEngine = localStorage.getItem('ocrEngine') || 'glm';
         const savedUrl = localStorage.getItem('scriptUrl') || '';
         engineSelect.value = savedEngine;
         scriptUrlInput.value = savedUrl;
@@ -96,12 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('date-input').value = new Date().toISOString().split('T')[0];
     }
 
-    // --- CAMERA & COMPRESSION LOGIC ---
-    const imagePreviewArea = document.getElementById('image-preview');
-    const cameraInput = document.getElementById('camera-input');
-    const receiptImg = document.getElementById('receipt-img');
-    const placeholder = document.getElementById('preview-placeholder');
-    const processBtn = document.getElementById('process-ocr-btn');
+    // --- 4. CAMERA & COMPRESSION LOGIC ---
     let currentImageBase64 = null;
 
     imagePreviewArea.addEventListener('click', () => {
@@ -158,11 +166,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    // --- OCR PROCESSING LOGIC ---
-    const loadingIndicator = document.getElementById('loading-indicator');
-    const loadingText = document.getElementById('loading-text');
-    const submitBtn = document.getElementById('submit-claim-btn');
-
+    // --- 5. OCR PROCESSING LOGIC ---
     let ocrWorker = null;
 
     processBtn.addEventListener('click', async () => {
@@ -276,8 +280,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // --- FORM SUBMISSION LOGIC ---
-    const claimForm = document.getElementById('claim-form');
-
     claimForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         
