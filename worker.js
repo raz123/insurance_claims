@@ -36,10 +36,15 @@ self.onmessage = async (e) => {
 async function initEngine() {
     if (tokenizer && sessions.language_model) return;
     
-    self.postMessage({ status: 'info', message: 'Loading GLM-OCR Tokenizer...' });
-    env.allowLocalModels = false;
-    // We only need the tokenizer from transformers.js
-    tokenizer = await AutoTokenizer.from_pretrained(CONFIG.modelId);
+    console.log('[Worker] Starting Engine Initialization...');
+    
+    try {
+        tokenizer = await AutoTokenizer.from_pretrained(CONFIG.modelId);
+        console.log('[Worker] Tokenizer loaded successfully.');
+    } catch (e) {
+        console.error('[Worker] Tokenizer load failed:', e);
+        throw e;
+    }
 
     const baseUrl = `https://huggingface.co/${CONFIG.modelId}/resolve/main`;
     const components = [
@@ -56,14 +61,21 @@ async function initEngine() {
     for (const file of components) {
         const key = file.replace('.onnx', '').replace('kv/', '');
         if (!sessions[key]) {
+            console.log(`[Worker] Loading session: ${file}...`);
             self.postMessage({ 
                 status: 'progress', 
                 message: `Downloading Component: ${file} (${loadedFiles + 1}/${totalFiles})`,
                 percent: Math.round((loadedFiles / totalFiles) * 100)
             });
-            sessions[key] = await ort.InferenceSession.create(`${baseUrl}/${file}`, {
-                executionProviders: ['webgpu']
-            });
+            try {
+                sessions[key] = await ort.InferenceSession.create(`${baseUrl}/${file}`, {
+                    executionProviders: ['webgpu']
+                });
+                console.log(`[Worker] Session ${key} loaded on WebGPU.`);
+            } catch (e) {
+                console.error(`[Worker] Failed to load ${file}:`, e);
+                throw e;
+            }
             loadedFiles++;
             self.postMessage({ 
                 status: 'progress', 
@@ -73,6 +85,7 @@ async function initEngine() {
             loadedFiles++;
         }
     }
+    console.log('[Worker] All 5 sessions ready.');
     self.postMessage({ status: 'progress', message: 'GPU Engines Ready.', percent: 100 });
 }
 
