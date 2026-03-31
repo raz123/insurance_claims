@@ -1,4 +1,4 @@
-console.log('[Worker] Global Init: v1.3.6');
+console.log('[Worker] Global Init: v1.3.7');
 import { AutoTokenizer, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.2.1/dist/transformers.js';
 import * as ort from 'https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.webgpu.min.mjs';
 import { getModel, setModel } from './db-storage.js';
