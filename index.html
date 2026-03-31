@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Insurance Claim Submission</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    
+    <!-- PIN Security Overlay -->
+    <div id="pin-overlay" class="overlay active">
+        <div class="glass-card text-center">
+            <h2>Enter Security PIN</h2>
+            <div class="pin-display">
+                <span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+            </div>
+            <div class="numpad">
+                <button class="num-btn" data-val="1">1</button>
+                <button class="num-btn" data-val="2">2</button>
+                <button class="num-btn" data-val="3">3</button>
+                <button class="num-btn" data-val="4">4</button>
+                <button class="num-btn" data-val="5">5</button>
+                <button class="num-btn" data-val="6">6</button>
+                <button class="num-btn" data-val="7">7</button>
+                <button class="num-btn" data-val="8">8</button>
+                <button class="num-btn" data-val="9">9</button>
+                <button class="num-btn clear-btn">C</button>
+                <button class="num-btn" data-val="0">0</button>
+                <button class="num-btn del-btn">&larr;</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content App -->
+    <main id="app-content" class="hidden">
+        
+        <header class="app-header">
+            <h1>New Claim</h1>
+            <button id="settings-btn" class="icon-btn" aria-label="Settings">⚙️</button>
+        </header>
+
+        <!-- Dynamic Settings Modal -->
+        <div id="settings-modal" class="modal">
+            <div class="modal-content glass-card">
+                <h3>OCR Engine Settings</h3>
+                <p class="subtitle">Select your image processor.</p>
+                <select id="engine-select" class="form-input">
+                    <option value="florence">Florence-2 (Intelligent VLM, 150MB)</option>
+                    <option value="trocr">TrOCR (Reads Handwriting, 50MB)</option>
+                    <option value="tesseract">Tesseract.js (Classic ML, 20MB)</option>
+                    <option value="drive">Google Drive Native (Server-Side, Zero MB)</option>
+                </select>
+                <div class="input-group">
+                    <label for="apps-script-url">Google Apps Script Web App URL</label>
+                    <input type="text" id="apps-script-url" class="form-input" placeholder="https://script.google.com/.../exec">
+                </div>
+                <button id="save-settings-btn" class="btn btn-primary">Save Preferences</button>
+            </div>
+        </div>
+
+        <!-- Camera Upload Section -->
+        <section class="upload-section">
+            <div class="image-preview" id="image-preview">
+                <span id="preview-placeholder">📷 Tap to snap receipt</span>
+                <img id="receipt-img" style="display: none;" alt="Receipt Preview">
+            </div>
+            <!-- Hidden file input triggered by tapping the preview square -->
+            <input type="file" id="camera-input" accept="image/*" capture="environment" hidden>
+            
+            <button id="process-ocr-btn" class="btn btn-accent hidden">Scan Document</button>
+        </section>
+
+        <!-- Loading / OCR Processing Status -->
+        <div id="loading-indicator" class="loading-indicator hidden">
+            <div class="spinner"></div>
+            <p id="loading-text">Downloading AI Model... (Please Wait)</p>
+        </div>
+
+        <!-- Claim Form -->
+        <form id="claim-form" class="glass-card form-container">
+            <div class="input-group">
+                <label for="spender">Spender</label>
+                <select id="spender" name="spender" class="form-input">
+                    <option value="R" selected>R (Default)</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+
+            <div class="input-row">
+                <div class="input-group">
+                    <label for="date-input">Date</label>
+                    <input type="date" id="date-input" name="date" class="form-input" required>
+                </div>
+                <div class="input-group">
+                    <label for="amount-input">Amount ($)</label>
+                    <input type="number" step="0.01" id="amount-input" name="amount" class="form-input" required>
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label for="vendor-input">Vendor / Provider</label>
+                <input type="text" id="vendor-input" name="vendor" class="form-input" required>
+            </div>
+
+            <button type="submit" id="submit-claim-btn" class="btn btn-primary submit-btn" disabled>Submit Claim</button>
+        </form>
+    </main>
+
+    <!-- JS Inclusions -->
+    <!-- We load transformers.js dynamically if needed, or Tesseract.js dynamically -->
+    <script src="app.js" defer></script>
+</body>
+</html>
