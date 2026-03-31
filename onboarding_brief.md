@@ -15,6 +15,20 @@ To build a 100% client-side, zero-cost insurance claims application that perform
 - **Persistence**: Google Apps Script (DB Save to Google Sheets).
 - **Privacy**: Local-only inference. Document data never leaves the user's browser.
 
+## 4. Enhanced Features (v1.3.5)
+-   **100% Offline Mode**: Users can manually select or "Upload" `.onnx` files into the browser's **IndexedDB**. Once stored, the app never needs to fetch from Hugging Face again.
+-   **Streaming Generation**: OCR results are streamed to a visual feed token-by-token (Typing Effect).
+-   **Individual Progress Tracking**: 5 individual progress bars for every AI component.
+-   **Robust I/O**: The engine is now immune to future model name changes by auto-detecting the `inputNames` of the ONNX sessions.
+
+## 5. Known Hardware Requirements
+- **WebGPU Support**: Requires a browser with WebGPU enabled (Chrome 113+, Edge 113+).
+- **VRAM**: The GLM-OCR model requires approximately 1.5GB of GPU memory.
+
+## 6. Deployment Notes
+- This is a 100% static application. No backend server is required.
+- CORS on Hugging Face is supported by default for browser-based `fetch`.
+
 ## 📈 Benchmarks
 - **Lightweight**: 0.9B parameters (approx. 1.2GB VRAM).
 - **Speed**: Optimized for <5s inference on modern integrated GPUs.

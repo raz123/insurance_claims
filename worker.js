@@ -1,6 +1,7 @@
 console.log('[Worker] Global Init: v1.3.2');
 import { AutoTokenizer, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.2.1/dist/transformers.js';
 import * as ort from 'https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.webgpu.min.mjs';
+import { getModel, setModel } from './db-storage.js';
 
 // Configuration for GLM-OCR (brad-agi/glm-ocr-onnx-webgpu)
 const CONFIG = {
@@ -12,9 +13,18 @@ const CONFIG = {
     tokens: {
         start: 59256,
         end: 59257,
-        image: 59280,
+        block: 59280, // Using 59280 for <image> block
         sop: 59255
     }
+};
+
+const BASE_URL = 'https://huggingface.co/brad-agi/glm-ocr-onnx-webgpu/resolve/main/onnx/';
+const FILES = {
+    vision: 'vision_encoder_int8.onnx',
+    language: 'language_model_int8.onnx',
+    embeds: 'text_embeddings.onnx',
+    prefill: 'kv/prefill_int8.onnx',
+    decode: 'kv/decode_int8.onnx'
 };
 
 // State management
@@ -22,70 +32,91 @@ let sessions = {};
 let tokenizer = null;
 
 self.onmessage = async (e) => {
-    const { action, imageBase64 } = e.data;
+    const { action, imageBase64, files } = e.data;
     if (action === 'PROCESS_IMAGE') {
         try {
             await initEngine();
             const result = await runInference(imageBase64);
             self.postMessage({ status: 'success', data: result });
         } catch (err) {
+            console.error('[Worker] OCR Error:', err);
             self.postMessage({ status: 'error', error: err.message });
         }
+    } else if (action === 'LOAD_MODELS') {
+        // Handle local model provisioning
+        for (const [name, buffer] of Object.entries(files)) {
+             await setModel(name, buffer);
+        }
+        await initEngine();
     }
 };
 
+async function fetchWithProgress(name, url) {
+    // 1. Check Local Cache (IndexedDB)
+    const cached = await getModel(name);
+    if (cached) {
+        console.log(`[Worker] Loaded from Cache: ${name}`);
+        self.postMessage({ status: 'progress', file: name, percent: 100 });
+        return cached;
+    }
+
+    // 2. Fetch from Cloud
+    const response = await fetch(url);
+    const total = parseInt(response.headers.get('content-length'), 10);
+    let loaded = 0;
+
+    const reader = response.body.getReader();
+    const chunks = [];
+
+    while(true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        loaded += value.length;
+        self.postMessage({ 
+            status: 'progress', 
+            file: name, 
+            percent: Math.round((loaded / total) * 100) 
+        });
+    }
+
+    const buffer = new Uint8Array(loaded);
+    let offset = 0;
+    for (const chunk of chunks) {
+        buffer.set(chunk, offset);
+        offset += chunk.length;
+    }
+
+    // 3. Store in Cache
+    await setModel(name, buffer.buffer);
+    return buffer.buffer;
+}
+
 async function initEngine() {
-    if (tokenizer && sessions.language_model) return;
-    
+    if (tokenizer && sessions.vision) return; // Already init
+
     console.log('[Worker] Starting Engine Initialization...');
-    
-    try {
-        tokenizer = await AutoTokenizer.from_pretrained(CONFIG.modelId);
-        console.log('[Worker] Tokenizer loaded successfully.');
-    } catch (e) {
-        console.error('[Worker] Tokenizer load failed:', e);
-        throw e;
+    self.postMessage({ status: 'progress', message: 'Loading Tokenizer...', percent: 5 });
+
+    // 1. Tokenizer
+    tokenizer = await AutoTokenizer.from_pretrained(CONFIG.modelId);
+    console.log('[Worker] Tokenizer loaded successfully.');
+
+    // 2. Models
+    const modelKeys = Object.keys(FILES);
+    for (const key of modelKeys) {
+        const fileName = FILES[key];
+        const url = BASE_URL + fileName;
+        
+        console.log(`[Worker] Sourcing model: ${fileName}...`);
+        const buffer = await fetchWithProgress(fileName, url);
+        
+        sessions[key] = await ort.InferenceSession.create(buffer, {
+            executionProviders: ['webgpu']
+        });
+        console.log(`[Worker] Session ${key} ready. Inputs: ${sessions[key].inputNames}`);
     }
 
-    const baseUrl = `https://huggingface.co/${CONFIG.modelId}/resolve/main`;
-    const components = [
-        'vision_encoder_int8.onnx',
-        'language_model_int8.onnx',
-        'text_embeddings.onnx',
-        'kv/prefill_int8.onnx',
-        'kv/decode_int8.onnx'
-    ];
-
-    const totalFiles = components.length;
-    let loadedFiles = 0;
-
-    for (const file of components) {
-        const key = file.replace('.onnx', '').replace('kv/', '');
-        if (!sessions[key]) {
-            console.log(`[Worker] Loading session: ${file}...`);
-            self.postMessage({ 
-                status: 'progress', 
-                message: `Downloading Component: ${file} (${loadedFiles + 1}/${totalFiles})`,
-                percent: Math.round((loadedFiles / totalFiles) * 100)
-            });
-            try {
-                sessions[key] = await ort.InferenceSession.create(`${baseUrl}/${file}`, {
-                    executionProviders: ['webgpu']
-                });
-                console.log(`[Worker] Session ${key} loaded on WebGPU.`);
-            } catch (e) {
-                console.error(`[Worker] Failed to load ${file}:`, e);
-                throw e;
-            }
-            loadedFiles++;
-            self.postMessage({ 
-                status: 'progress', 
-                percent: Math.round((loadedFiles / totalFiles) * 100)
-            });
-        } else {
-            loadedFiles++;
-        }
-    }
     console.log('[Worker] All 5 sessions ready.');
     self.postMessage({ status: 'progress', message: 'GPU Engines Ready.', percent: 100 });
 }
@@ -98,7 +129,11 @@ async function runInference(imageBase64) {
     
     // 2. Vision Encoding
     self.postMessage({ status: 'info', message: 'Running Visual Encoder...' });
-    const visionOutput = await sessions.vision_encoder_int8.run({ input: visionTensor });
+    // Robust I/O: Find the input name (likely 'pixel_values')
+    const visionInputName = sessions.vision.inputNames[0];
+    const visionFeeds = {};
+    visionFeeds[visionInputName] = visionTensor;
+    const visionOutput = await sessions.vision.run(visionFeeds);
     
     // 3. Spatial Merge (2x2 downsampling)
     const mergedEmbeds = mergeVisionTokens(visionOutput.output);
@@ -133,11 +168,20 @@ async function runInference(imageBase64) {
     let generatedText = "";
     let step = 0;
 
+    self.postMessage({ status: 'info', message: 'Generating Extraction...' });
+    
     while (step < CONFIG.maxTokens) {
         const decoded = tokenizer.decode([Number(nextToken)], { skip_special_tokens: true });
+        
+        // Stop if we hit EOS or common end markers
         if (decoded.includes('</s>')) break;
+        
         generatedText += decoded;
         
+        // Stream the token back to UI
+        self.postMessage({ status: 'stream', token: decoded, text: generatedText });
+
+        // Next Step
         const nextEmbed = await getEmbedding(nextToken);
         const nextPos = generate3DPositionIds(1, 0, seqLen + step);
         
@@ -150,18 +194,23 @@ async function runInference(imageBase64) {
         nextToken = sampleLogits(decodeOutput.logits);
         pastKeyValues = decodeOutput.past_key_values;
         step++;
-        
-        if (step % 5 === 0) {
-            self.postMessage({ status: 'progress', message: `Extracted: ${generatedText}` });
-        }
     }
 
-    const amountMatch = generatedText.match(/(\d+[.,]\d{2})/);
-    return { 
-        vendor: "GLM: " + (generatedText.substring(0, 20)), 
-        amount: amountMatch ? amountMatch[1].replace(',', '.') : "", 
-        date: new Date().toISOString().split('T')[0] 
-    };
+    // Attempt to parse JSON from the stream
+    let result = { vendor: "Unknown", amount: "", date: "" };
+    try {
+        const jsonMatch = generatedText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            const parsed = JSON.parse(jsonMatch[0]);
+            result = { ...result, ...parsed };
+        }
+    } catch (e) {
+        console.warn('[Worker] JSON Parse failed, using regex fallback.');
+        const amountMatch = generatedText.match(/(\d+[.,]\d{2})/);
+        result.amount = amountMatch ? amountMatch[1] : "";
+    }
+    
+    return result;
 }
 
 async function prepareImageTensor(base64) {
