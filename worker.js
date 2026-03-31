@@ -8,7 +8,7 @@ self.onmessage = async function(event) {
         try {
             self.postMessage({ status: 'info', message: `Initializing ${engine}...` });
 
-            if (engine === 'florence' || engine === 'trocr') {
+            if (engine === 'glm') {
                 await processTransformersJs(imageBase64, engine);
             } else if (engine === 'tesseract') {
                 await processTesseractJs(imageBase64);
