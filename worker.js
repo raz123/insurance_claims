@@ -50,15 +50,30 @@ async function initEngine() {
         'kv/decode_int8.onnx'
     ];
 
+    const totalFiles = components.length;
+    let loadedFiles = 0;
+
     for (const file of components) {
         const key = file.replace('.onnx', '').replace('kv/', '');
         if (!sessions[key]) {
-            self.postMessage({ status: 'info', message: `Downloading ${file}...` });
+            self.postMessage({ 
+                status: 'progress', 
+                message: `Downloading Component: ${file} (${loadedFiles + 1}/${totalFiles})`,
+                percent: Math.round((loadedFiles / totalFiles) * 100)
+            });
             sessions[key] = await ort.InferenceSession.create(`${baseUrl}/${file}`, {
                 executionProviders: ['webgpu']
             });
+            loadedFiles++;
+            self.postMessage({ 
+                status: 'progress', 
+                percent: Math.round((loadedFiles / totalFiles) * 100)
+            });
+        } else {
+            loadedFiles++;
         }
     }
+    self.postMessage({ status: 'progress', message: 'GPU Engines Ready.', percent: 100 });
 }
 
 async function runInference(imageBase64) {

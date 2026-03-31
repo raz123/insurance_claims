@@ -131,13 +131,19 @@ document.addEventListener('DOMContentLoaded', () => {
             engine: engine
         });
 
+        const progressBar = document.getElementById('progress-bar');
+
         ocrWorker.onmessage = (e) => {
-            const { status, message, data, error } = e.data;
+            const { status, message, data, error, percent } = e.data;
 
             if (status === 'progress' || status === 'info') {
-                loadingText.innerText = message;
+                if (message) loadingText.innerText = message;
+                if (percent !== undefined) {
+                    progressBar.style.width = `${percent}%`;
+                }
             } else if (status === 'success') {
                 loadingIndicator.classList.add('hidden');
+                progressBar.style.width = '0%';
                 
                 // Auto fill fields
                 if(data.vendor) document.getElementById('vendor-input').value = data.vendor;

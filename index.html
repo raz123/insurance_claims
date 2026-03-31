@@ -48,9 +48,12 @@
         </section>
 
         <!-- Loading / OCR Processing Status -->
-        <div id="loading-indicator" class="loading-indicator hidden">
+        <div class="loading-indicator hidden" id="loading-indicator">
             <div class="spinner"></div>
-            <p id="loading-text">Downloading AI Model... (Please Wait)</p>
+            <p id="loading-text" class="loading-text">Initializing Local AI Inference...</p>
+            <div class="progress-wrapper">
+                <div id="progress-bar" class="progress-bar"></div>
+            </div>
         </div>
 
         <!-- Claim Form -->
