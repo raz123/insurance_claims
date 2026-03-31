@@ -1,4 +1,4 @@
-console.log('[Worker] Global Init: v1.3.9');
+console.log('[Worker] Global Init: v1.3.10');
 import { AutoTokenizer, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.2.1/dist/transformers.js';
 import * as ort from 'https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.webgpu.min.mjs';
 import { getModel, setModel } from './db-storage.js';
@@ -142,9 +142,12 @@ async function runInference(imageBase64) {
     }
     
     const visionOutput = await sessions.vision.run(visionFeeds);
+    const visionOutName = sessions.vision.outputNames[0];
+    const rawVisionOut = visionOutput[visionOutName];
+    console.log('[Worker] Vision output name:', visionOutName, 'shape:', rawVisionOut?.dims);
     
     // 3. Spatial Merge (2x2 downsampling)
-    const mergedEmbeds = mergeVisionTokens(visionOutput.output);
+    const mergedEmbeds = mergeVisionTokens(rawVisionOut);
     
     // 4. Tokenization
     const prompt = "请按下列JSON格式输出图中信息:\n{ \"vendor\": \"\", \"amount\": \"\", \"date\": \"\" }";
@@ -273,39 +276,46 @@ async function prepareImageTensor(base64) {
 }
 
 function mergeVisionTokens(tensor) {
-    const [batch, seq, dim] = tensor.dims; 
-    console.log(`[Worker] Vision Output Shape: [${batch}, ${seq}, ${dim}]`);
-    
-    if (seq === 144) {
-        console.log('[Worker] Vision already merged (144 tokens).');
-        return tensor;
+    // Normalize to 3D [1, N, dim] — vision encoder may return [N, dim] or [1, N, dim]
+    let data, seq, dim;
+    if (tensor.dims.length === 2) {
+        seq = tensor.dims[0];
+        dim = tensor.dims[1];
+        data = tensor.data;
+        console.log(`[Worker] Vision output 2D: [${seq}, ${dim}]`);
+    } else {
+        const [batch, s, d] = tensor.dims;
+        seq = s; dim = d;
+        data = tensor.data;
+        console.log(`[Worker] Vision output 3D: [${batch}, ${seq}, ${dim}]`);
     }
 
-    // Manual Spatial Merge (2x2 pooling)
-    // GLM Grid is 24x24 = 576. Language model expects 12x12 = 144.
-    console.log('[Worker] Performing 2x2 Spatial Merge...');
-    const data = tensor.data;
-    const mergedData = new Float32Array(batch * 144 * dim);
-    
-    for (let b = 0; b < batch; b++) {
-        for (let r = 0; r < 12; r++) {
-            for (let c = 0; c < 12; c++) {
-                const targetIdx = (b * 144 + r * 12 + c) * dim;
-                // Sum 2x2 block from 24x24 grid
-                for (let i = 0; i < 2; i++) {
-                    for (let j = 0; j < 2; j++) {
-                        const sourceR = r * 2 + i;
-                        const sourceC = c * 2 + j;
-                        const sourceIdx = (b * 576 + sourceR * 24 + sourceC) * dim;
-                        for (let k = 0; k < dim; k++) {
-                            mergedData[targetIdx + k] += data[sourceIdx + k] / 4.0;
-                        }
+    if (seq === 144) {
+        console.log('[Worker] Vision already merged (144 tokens).');
+        return new ort.Tensor('float32', data, [1, seq, dim]);
+    }
+
+    // Manual 2x2 Spatial Merge: 24x24=576 → 12x12=144
+    if (seq !== 576) {
+        console.warn(`[Worker] Unexpected seq length: ${seq}. Expected 576. Passing through.`);
+        return new ort.Tensor('float32', data, [1, seq, dim]);
+    }
+    console.log('[Worker] Performing 2x2 Spatial Merge 576→144...');
+    const mergedData = new Float32Array(144 * dim);
+    for (let r = 0; r < 12; r++) {
+        for (let c = 0; c < 12; c++) {
+            const targetIdx = (r * 12 + c) * dim;
+            for (let i = 0; i < 2; i++) {
+                for (let j = 0; j < 2; j++) {
+                    const srcIdx = ((r * 2 + i) * 24 + (c * 2 + j)) * dim;
+                    for (let k = 0; k < dim; k++) {
+                        mergedData[targetIdx + k] += data[srcIdx + k] / 4.0;
                     }
                 }
             }
         }
     }
-    return new ort.Tensor('float32', mergedData, [batch, 144, dim]);
+    return new ort.Tensor('float32', mergedData, [1, 144, dim]);
 }
 
 function generate3DPositionIds(seqLen, promptLen, offset = 0) {
