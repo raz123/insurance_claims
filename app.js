@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('App Version: 1.2.0');
+    console.log('App Version: 1.3.1');
     const settingsBtn = document.getElementById('settings-btn');
     const settingsModal = document.getElementById('settings-modal');
     const saveSettingsBtn = document.getElementById('save-settings-btn');
@@ -122,7 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function runWebWorkerAI(engine) {
         if (!ocrWorker) {
              console.log('[App] Instantiating custom GLM worker...');
-             ocrWorker = new Worker('worker.js?v=v1.2.0', { type: 'module' });
+             ocrWorker = new Worker('worker.js?v=v1.3.1', { type: 'module' });
              
              ocrWorker.onerror = (err) => {
                 console.error('[App] Worker failed to load or experienced a top-level error:', err);
