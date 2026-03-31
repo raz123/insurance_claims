@@ -8,11 +8,7 @@ function doPost(e) {
     const params = JSON.parse(e.postData.contents);
     const action = params.action;
 
-    if (action === "DRIVE_OCR") {
-       return handleDriveHack(params);
-    } else if (action === "GEMINI_OCR") {
-       return handleGeminiOcr(params);
-    } else if (action === "DATABASE_SAVE") {
+    if (action === "DATABASE_SAVE") {
        return handleDatabaseSave(params);
     } else {
        throw new Error("Unknown action requested.");
@@ -24,100 +20,6 @@ function doPost(e) {
       error: error.toString() 
     })).setMimeType(ContentService.MimeType.JSON);
   }
-}
-
-// Option 4: The Drive Native OCR Hack
-function handleDriveHack(params) {
-  const blob = Utilities.newBlob(Utilities.base64Decode(params.imageBase64), params.mimeType, params.filename);
-  
-  // 1. Upload the image directly as a Google Doc which forces OCR
-  const resource = {
-    title: params.filename,
-    mimeType: params.mimeType
-  };
-  
-  // Create file with OCR enabled (This is a Drive v2 API feature accessible via Advanced Services, 
-  // but we can simulate it with standard DriveApp if Advanced isn't enabled by simply extracting text
-  // from a blob). 
-  // For standard free Apps Script without enabling advanced Drive API:
-  const folder = getFolder(DRIVE_FOLDER_NAME);
-  const file = folder.createFile(blob);
-  
-  // Fallback: Because Drive API v3 requires explicit enablement for standard OCR, 
-  // in this free script we'll just return a mock "successful server response" 
-  // to prove the architecture works before you enable Drive API Advanced services.
-  
-  const mockExtractedText = "Walmart Supercenter\nTotal: $14.99\nDate: 03/31/2026\nThank you for shopping!";
-  
-  // Clean up the temp image
-  file.setTrashed(true);
-
-  return ContentService.createTextOutput(JSON.stringify({
-    success: true,
-    extractedText: mockExtractedText
-  })).setMimeType(ContentService.MimeType.JSON);
-}
-
-/**
- * Gemini 1.5 Flash Intelligent OCR
- */
-function handleGeminiOcr(params) {
-  const apiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
-  
-  if (!apiKey) {
-    throw new Error("Gemini API Key not found in Script Properties. Please add GEMINI_API_KEY.");
-  }
-
-  const apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
-  
-  const payload = {
-    contents: [{
-      parts: [
-        { text: "Accurately extract following JSON from this receipt image: {vendor: string, amount: number, date: string (YYYY-MM-DD)}. Only return JSON." },
-        { inline_data: { mime_type: "image/jpeg", data: params.imageBase64 } }
-      ]
-    }]
-  };
-
-  const options = {
-    method: "POST",
-    contentType: "application/json",
-    payload: JSON.stringify(payload),
-    muteHttpExceptions: true
-  };
-
-  const response = UrlFetchApp.fetch(apiUrl, options);
-  const json = JSON.parse(response.getContentText());
-  
-  if (response.getResponseCode() !== 200) {
-    throw new Error("Gemini API Error: " + (json.error ? json.error.message : response.getContentText()));
-  }
-
-  let textResult = json.candidates[0].content.parts[0].text;
-  let extractedData = { vendor: "Unknown", amount: "0.00", date: "" };
-  
-  try {
-     // Clean markdown if present
-     let cleanText = textResult.replace(/```json|```/g, "").trim();
-     
-     // Sometimes Gemini returns unstructured text before the JSON block
-     const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
-     if (jsonMatch) {
-         extractedData = JSON.parse(jsonMatch[0]);
-     } else {
-         throw new Error("No JSON structure found");
-     }
-  } catch (e) {
-     // Fallback text parsing if Gemini failed to output strict JSON
-     const priceMatch = textResult.match(/\$?\s*(\d{1,4}[.,]\d{2})/);
-     if(priceMatch) extractedData.amount = priceMatch[1].replace(',', '.');
-     extractedData.vendor = "Gemini Text Fallback";
-  }
-
-  return ContentService.createTextOutput(JSON.stringify({
-    success: true,
-    data: extractedData
-  })).setMimeType(ContentService.MimeType.JSON);
 }
 
 // Option 1-3 & 4: Saving the finalized claim

@@ -10,32 +10,9 @@
 </head>
 <body>
     
-    <!-- PIN Security Overlay -->
-    <div id="pin-overlay" class="overlay active">
-        <div class="glass-card text-center">
-            <h2>Enter Security PIN</h2>
-            <div class="pin-display">
-                <span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span>
-            </div>
-            <div class="numpad">
-                <button class="num-btn" data-val="1">1</button>
-                <button class="num-btn" data-val="2">2</button>
-                <button class="num-btn" data-val="3">3</button>
-                <button class="num-btn" data-val="4">4</button>
-                <button class="num-btn" data-val="5">5</button>
-                <button class="num-btn" data-val="6">6</button>
-                <button class="num-btn" data-val="7">7</button>
-                <button class="num-btn" data-val="8">8</button>
-                <button class="num-btn" data-val="9">9</button>
-                <button class="num-btn clear-btn">C</button>
-                <button class="num-btn" data-val="0">0</button>
-                <button class="num-btn del-btn">&larr;</button>
-            </div>
-        </div>
-    </div>
 
     <!-- Main Content App -->
-    <main id="app-content" class="hidden">
+    <main id="app-content">
         
         <header class="app-header">
             <h1>New Claim</h1>
@@ -48,9 +25,7 @@
                 <h3>OCR Engine Settings</h3>
                 <p class="subtitle">Select your image processor.</p>
                 <select id="engine-select" class="form-input">
-                    <option value="glm">Florence-2 Base (WebGPU - High Fidelity)</option>
-                    <option value="gemini">Gemini 1.5 Flash (Cloud - Intelligent)</option>
-                    <option value="drive">Google Drive Native (Server Fallback)</option>
+                    <option value="glm" selected>Local GLM-OCR (WebGPU - High Fidelity)</option>
                 </select>
                 <div class="input-group">
                     <label for="apps-script-url">Google Apps Script Web App URL</label>

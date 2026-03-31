@@ -1,10 +1,4 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // --- 1. DOM ELEMENT SELECTIONS ---
-    const pinOverlay = document.getElementById('pin-overlay');
-    const appContent = document.getElementById('app-content');
-    const dots = document.querySelectorAll('.dot');
-    const numBtns = document.querySelectorAll('.num-btn');
-    
     const settingsBtn = document.getElementById('settings-btn');
     const settingsModal = document.getElementById('settings-modal');
     const saveSettingsBtn = document.getElementById('save-settings-btn');
@@ -22,64 +16,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const submitBtn = document.getElementById('submit-claim-btn');
     const claimForm = document.getElementById('claim-form');
 
-    // --- 2. PIN LOCK LOGIC (4321) ---
-    const CORRECT_PIN = '4321';
-    let enteredPin = '';
-
-    // Check if previously logged in (session only)
-    if(sessionStorage.getItem('authenticated') === 'true') {
-        unlockApp();
-    } else {
-        pinOverlay.classList.add('active');
-        appContent.classList.add('hidden');
-    }
-
-    numBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            if (btn.classList.contains('clear-btn')) {
-                enteredPin = '';
-                updateDots();
-            } else if (btn.classList.contains('del-btn')) {
-                enteredPin = enteredPin.slice(0, -1);
-                updateDots();
-            } else if (enteredPin.length < 4) {
-                enteredPin += btn.dataset.val;
-                updateDots();
-                if (enteredPin.length === 4) {
-                    setTimeout(verifyPin, 100);
-                }
-            }
-        });
-    });
-
-    function updateDots() {
-        dots.forEach((dot, index) => {
-            dot.classList.toggle('filled', index < enteredPin.length);
-        });
-    }
-
-    function verifyPin() {
-        if (enteredPin === CORRECT_PIN) {
-            sessionStorage.setItem('authenticated', 'true');
-            unlockApp();
-        } else {
-            // Shake visual feedback
-            const display = document.querySelector('.pin-display');
-            display.style.transform = 'translateX(-10px)';
-            setTimeout(() => display.style.transform = 'translateX(10px)', 100);
-            setTimeout(() => display.style.transform = 'translateX(-10px)', 200);
-            setTimeout(() => display.style.transform = 'translateX(0)', 300);
-            
-            enteredPin = '';
-            setTimeout(updateDots, 300);
-        }
-    }
-
-    function unlockApp() {
-        pinOverlay.classList.remove('active');
-        appContent.classList.remove('hidden');
-        loadSettings();
-    }
+    // --- 2. INITIALIZATION ---
+    loadSettings();
 
     // --- 3. SETTINGS LOGIC ---
     settingsBtn.addEventListener('click', () => {
@@ -177,13 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
         processBtn.classList.add('hidden');
         loadingIndicator.classList.remove('hidden');
 
-        if (engine === 'gemini') {
-            await runCloudOcr('GEMINI_OCR');
-        } else if (engine === 'drive') {
-            await runCloudOcr('DRIVE_OCR');
-        } else {
-            runWebWorkerAI(engine);
-        }
+        runWebWorkerAI(engine);
     });
 
     function runWebWorkerAI(engine) {
@@ -223,60 +155,6 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    async function runCloudOcr(actionType) {
-        const scriptUrl = localStorage.getItem('scriptUrl');
-        if (!scriptUrl) {
-            alert('Please configure your Google Apps Script URL in settings first.');
-            loadingIndicator.classList.add('hidden');
-            settingsModal.classList.add('active');
-            return;
-        }
-
-        const actionName = actionType === 'GEMINI_OCR' ? 'Gemini 1.5 Flash' : 'Google Drive';
-        loadingText.innerText = `Calling ${actionName} for Intelligent OCR...`;
-
-        try {
-            const response = await fetch(scriptUrl, {
-                method: "POST",
-                body: JSON.stringify({
-                    action: actionType,
-                    imageBase64: currentImageBase64.split(",")[1],
-                    mimeType: "image/jpeg",
-                    filename: "receipt_temp.jpg"
-                })
-            });
-
-            const result = await response.json();
-            
-            if (result.success) {
-                 loadingIndicator.classList.add('hidden');
-                 
-                 // If the cloud service found JSON (like Gemini)
-                 if (result.data) {
-                    if(result.data.vendor) document.getElementById('vendor-input').value = result.data.vendor;
-                    if(result.data.amount) document.getElementById('amount-input').value = result.data.amount;
-                    if(result.data.date) document.getElementById('date-input').value = result.data.date;
-                 } else {
-                    // Fallback to text parsing if only raw text is returned (Drive)
-                    let rawText = result.extractedText || "";
-                    const priceMatch = rawText.match(/\$?\s*(\d{1,4}[.,]\d{2})/);
-                    if(priceMatch) document.getElementById('amount-input').value = priceMatch[1].replace(',', '.');
-                    document.getElementById('vendor-input').value = "Parsed from Cloud";
-                 }
-                 
-                 submitBtn.disabled = false;
-                 processBtn.innerText = "Re-Scan Document";
-                 processBtn.classList.remove('hidden');
-            } else {
-                 throw new Error(result.error);
-            }
-
-        } catch (e) {
-            loadingIndicator.classList.add('hidden');
-            processBtn.classList.remove('hidden');
-            alert('Server Error: ' + e.message);
-        }
-    }
 
 
     // --- FORM SUBMISSION LOGIC ---
