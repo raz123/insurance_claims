@@ -133,6 +133,12 @@ async function runInference(imageBase64) {
     const visionInputName = sessions.vision.inputNames[0];
     const visionFeeds = {};
     visionFeeds[visionInputName] = visionTensor;
+    
+    // Fix: Add grid_thw if the model requires it (for GLM models)
+    if (sessions.vision.inputNames.includes('grid_thw')) {
+        visionFeeds['grid_thw'] = new ort.Tensor('int64', BigInt64Array.from([1n, 24n, 24n]), [1, 3]);
+    }
+    
     const visionOutput = await sessions.vision.run(visionFeeds);
     
     // 3. Spatial Merge (2x2 downsampling)

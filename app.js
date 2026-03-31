@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('App Version: 1.3.7');
+    console.log('App Version: 1.3.8');
     const refreshStatusBtn = document.getElementById('refresh-status-btn');
     const clearCacheBtn = document.getElementById('clear-cache-btn');
     const scriptUrlInput = document.getElementById('apps-script-url');
@@ -137,6 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Convert back to base64, JPEG 70% quality
             currentImageBase64 = canvas.toDataURL('image/jpeg', 0.7);
+            processBtn.classList.remove('hidden');
         };
     }
 
@@ -157,8 +158,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function runWebWorkerAI(engine) {
         if (!ocrWorker) {
              console.log('[App] Instantiating custom GLM worker...');
-             // Cache busting version 1.3.6
-             ocrWorker = new Worker('worker.js?v=v1.3.6', { type: 'module' });
+             // Cache busting version 1.3.8
+             ocrWorker = new Worker('worker.js?v=v1.3.8', { type: 'module' });
              
              ocrWorker.onmessage = (e) => {
                  const { status, message, percent, file, text, data, error } = e.data;
