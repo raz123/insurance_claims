@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('App Version: 1.3.8');
+    console.log('App Version: 1.3.9');
     const refreshStatusBtn = document.getElementById('refresh-status-btn');
     const clearCacheBtn = document.getElementById('clear-cache-btn');
     const scriptUrlInput = document.getElementById('apps-script-url');
@@ -158,8 +158,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function runWebWorkerAI(engine) {
         if (!ocrWorker) {
              console.log('[App] Instantiating custom GLM worker...');
-             // Cache busting version 1.3.8
-             ocrWorker = new Worker('worker.js?v=v1.3.8', { type: 'module' });
+             // Cache busting: always update this when changing worker.js
+             ocrWorker = new Worker('worker.js?v=v1.3.9', { type: 'module' });
              
              ocrWorker.onmessage = (e) => {
                  const { status, message, percent, file, text, data, error } = e.data;

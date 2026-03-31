@@ -1,4 +1,4 @@
-console.log('[Worker] Global Init: v1.3.7');
+console.log('[Worker] Global Init: v1.3.9');
 import { AutoTokenizer, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.2.1/dist/transformers.js';
 import * as ort from 'https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.webgpu.min.mjs';
 import { getModel, setModel } from './db-storage.js';
@@ -129,14 +129,14 @@ async function runInference(imageBase64) {
     
     // 2. Vision Encoding
     self.postMessage({ status: 'info', message: 'Running Visual Encoder...' });
-    // Robust I/O: Find the input name (likely 'pixel_values')
     const visionInputName = sessions.vision.inputNames[0];
     const visionFeeds = {};
     
-    // Fix: This specific model export expects Rank 2 [1, 3*336*336] instead of Rank 4 [1, 3, 336, 336]
-    visionFeeds[visionInputName] = visionTensor.reshape([1, 3 * 336 * 336]);
+    // visionTensor is now [576, 1176] — patch format per Qwen2-VL/GLM protocol
+    visionFeeds[visionInputName] = visionTensor;
+    console.log('[Worker] pixel_values shape:', visionTensor.dims);
     
-    // Fix: Add grid_thw if the model requires it (for GLM models)
+    // Add grid_thw: [T=1, H_patches=24, W_patches=24]
     if (sessions.vision.inputNames.includes('grid_thw')) {
         visionFeeds['grid_thw'] = new ort.Tensor('int64', BigInt64Array.from([1n, 24n, 24n]), [1, 3]);
     }
@@ -222,18 +222,54 @@ async function runInference(imageBase64) {
 }
 
 async function prepareImageTensor(base64) {
+    // GLM-OCR / Qwen2-VL patch format:
+    // Output: [num_patches, temporal_patch_size * C * patch_H * patch_W]
+    //       = [576, 2 * 3 * 14 * 14] = [576, 1176]
+    // For a single image, the frame is duplicated along the temporal axis.
+    const PATCH = 14;
+    const IMG  = 336;
+    const GRID = IMG / PATCH;        // 24
+    const TEMPORAL = 2;              // temporal_patch_size
+    const C = 3;
+    const FEAT = TEMPORAL * C * PATCH * PATCH; // 1176
+    const N_PATCHES = GRID * GRID;             // 576
+
+    const MEAN = [0.48145466, 0.4578275,  0.40821073];
+    const STD  = [0.26862954, 0.26130258, 0.27577711];
+
     const img = await createImageBitmap(await (await fetch(base64)).blob());
-    const canvas = new OffscreenCanvas(336, 336);
+    const canvas = new OffscreenCanvas(IMG, IMG);
     const ctx = canvas.getContext('2d');
-    ctx.drawImage(img, 0, 0, 336, 336);
-    const { data } = ctx.getImageData(0, 0, 336, 336);
-    const floatData = new Float32Array(3 * 336 * 336);
-    for (let i = 0; i < 336 * 336; i++) {
-        floatData[i] = (data[i * 4] / 255 - 0.481) / 0.268;
-        floatData[i + 336*336] = (data[i * 4 + 1] / 255 - 0.457) / 0.261;
-        floatData[i + 2*336*336] = (data[i * 4 + 2] / 255 - 0.408) / 0.275;
+    ctx.drawImage(img, 0, 0, IMG, IMG);
+    const raw = ctx.getImageData(0, 0, IMG, IMG).data; // RGBA, uint8
+
+    const output = new Float32Array(N_PATCHES * FEAT);
+
+    for (let ph = 0; ph < GRID; ph++) {
+        for (let pw = 0; pw < GRID; pw++) {
+            const patchIdx = ph * GRID + pw;
+            const base = patchIdx * FEAT;
+            // Extract one patch [C, PATCH, PATCH], then duplicate for temporal
+            for (let t = 0; t < TEMPORAL; t++) {
+                for (let c = 0; c < C; c++) {
+                    for (let py = 0; py < PATCH; py++) {
+                        for (let px = 0; px < PATCH; px++) {
+                            const iy = ph * PATCH + py;
+                            const ix = pw * PATCH + px;
+                            const pixel = (iy * IMG + ix) * 4;
+                            const val = (raw[pixel + c] / 255 - MEAN[c]) / STD[c];
+                            // Layout: [temporal, C, pH, pW] flattened
+                            const outIdx = base + t * (C * PATCH * PATCH) + c * (PATCH * PATCH) + py * PATCH + px;
+                            output[outIdx] = val;
+                        }
+                    }
+                }
+            }
+        }
     }
-    return new ort.Tensor('float32', floatData, [1, 3, 336, 336]);
+
+    console.log('[Worker] prepareImageTensor → shape [576, 1176] ✓');
+    return new ort.Tensor('float32', output, [N_PATCHES, FEAT]);
 }
 
 function mergeVisionTokens(tensor) {
