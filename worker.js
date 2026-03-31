@@ -132,7 +132,9 @@ async function runInference(imageBase64) {
     // Robust I/O: Find the input name (likely 'pixel_values')
     const visionInputName = sessions.vision.inputNames[0];
     const visionFeeds = {};
-    visionFeeds[visionInputName] = visionTensor;
+    
+    // Fix: This specific model export expects Rank 2 [1, 3*336*336] instead of Rank 4 [1, 3, 336, 336]
+    visionFeeds[visionInputName] = visionTensor.reshape([1, 3 * 336 * 336]);
     
     // Fix: Add grid_thw if the model requires it (for GLM models)
     if (sessions.vision.inputNames.includes('grid_thw')) {
