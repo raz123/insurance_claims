@@ -1,4 +1,4 @@
-console.log('[Worker] Global Init: v1.3.10');
+console.log('[Worker] Global Init: v1.3.11');
 import { AutoTokenizer, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.2.1/dist/transformers.js';
 import * as ort from 'https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.webgpu.min.mjs';
 import { getModel, setModel } from './db-storage.js';
@@ -337,15 +337,21 @@ function generate3DPositionIds(seqLen, promptLen, offset = 0) {
 }
 
 async function getEmbedding(id) {
-    const input = new ort.Tensor('int64', BigInt64Array.from([BigInt(id)]), [1, 1]);
-    const { output } = await sessions.text_embeddings.run({ input });
-    return output;
+    const inputName = sessions.embeds.inputNames[0];  // 'input_ids'
+    const outputName = sessions.embeds.outputNames[0];
+    const feeds = {};
+    feeds[inputName] = new ort.Tensor('int64', BigInt64Array.from([BigInt(id)]), [1, 1]);
+    const result = await sessions.embeds.run(feeds);
+    return result[outputName];
 }
 
 async function getEmbeddings(ids) {
-    const input = new ort.Tensor('int64', BigInt64Array.from(ids.map(BigInt)), [1, ids.length]);
-    const { output } = await sessions.text_embeddings.run({ input });
-    return output;
+    const inputName = sessions.embeds.inputNames[0];
+    const outputName = sessions.embeds.outputNames[0];
+    const feeds = {};
+    feeds[inputName] = new ort.Tensor('int64', BigInt64Array.from(ids.map(BigInt)), [1, ids.length]);
+    const result = await sessions.embeds.run(feeds);
+    return result[outputName];
 }
 
 function concatenateTensors(tensors) {
