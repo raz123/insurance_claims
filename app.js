@@ -168,13 +168,15 @@ document.addEventListener('DOMContentLoaded', () => {
     processBtn.addEventListener('click', async () => {
         if (!currentImageBase64) return;
 
-        const engine = localStorage.getItem('ocrEngine') || 'florence';
+        const engine = localStorage.getItem('ocrEngine') || 'glm';
         
         processBtn.classList.add('hidden');
         loadingIndicator.classList.remove('hidden');
 
-        if (engine === 'drive') {
-            await runDriveNativeHack();
+        if (engine === 'gemini') {
+            await runCloudOcr('GEMINI_OCR');
+        } else if (engine === 'drive') {
+            await runCloudOcr('DRIVE_OCR');
         } else {
             runWebWorkerAI(engine);
         }
@@ -185,7 +187,7 @@ document.addEventListener('DOMContentLoaded', () => {
              ocrWorker = new Worker('worker.js');
         }
 
-        loadingText.innerText = "Initializing Background AI Worker...";
+        loadingText.innerText = "Initializing Local AI Inference...";
 
         ocrWorker.postMessage({
             action: 'PROCESS_IMAGE',
@@ -200,7 +202,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 loadingText.innerText = message;
             } else if (status === 'success') {
                 loadingIndicator.classList.add('hidden');
-                alert(`AI Found: Vendor=${data.vendor}, Amount=$${data.amount}`);
                 
                 // Auto fill fields
                 if(data.vendor) document.getElementById('vendor-input').value = data.vendor;
@@ -218,7 +219,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    async function runDriveNativeHack() {
+    async function runCloudOcr(actionType) {
         const scriptUrl = localStorage.getItem('scriptUrl');
         if (!scriptUrl) {
             alert('Please configure your Google Apps Script URL in settings first.');
@@ -227,14 +228,15 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        loadingText.innerText = "Uploading to Google Drive for Native OCR...";
+        const actionName = actionType === 'GEMINI_OCR' ? 'Gemini 1.5 Flash' : 'Google Drive';
+        loadingText.innerText = `Calling ${actionName} for Intelligent OCR...`;
 
         try {
             const response = await fetch(scriptUrl, {
                 method: "POST",
                 body: JSON.stringify({
-                    action: "DRIVE_OCR",
-                    imageBase64: currentImageBase64.split(",")[1], // Strip header
+                    action: actionType,
+                    imageBase64: currentImageBase64.split(",")[1],
                     mimeType: "image/jpeg",
                     filename: "receipt_temp.jpg"
                 })
@@ -245,14 +247,18 @@ document.addEventListener('DOMContentLoaded', () => {
             if (result.success) {
                  loadingIndicator.classList.add('hidden');
                  
-                 // Since drive hack only returns raw text, we parse it loosely here
-                 let rawText = result.extractedText;
-                 alert("Google Drive Extracted Length: " + rawText.length + " chars");
-                 
-                 // Extremely naive regex for drive hack
-                 const priceMatch = rawText.match(/\$?\s*(\d{1,4}[.,]\d{2})/);
-                 if(priceMatch) document.getElementById('amount-input').value = priceMatch[1].replace(',', '.');
-                 document.getElementById('vendor-input').value = "Parsed from Drive (" + rawText.substring(0,5) + ")";
+                 // If the cloud service found JSON (like Gemini)
+                 if (result.data) {
+                    if(result.data.vendor) document.getElementById('vendor-input').value = result.data.vendor;
+                    if(result.data.amount) document.getElementById('amount-input').value = result.data.amount;
+                    if(result.data.date) document.getElementById('date-input').value = result.data.date;
+                 } else {
+                    // Fallback to text parsing if only raw text is returned (Drive)
+                    let rawText = result.extractedText || "";
+                    const priceMatch = rawText.match(/\$?\s*(\d{1,4}[.,]\d{2})/);
+                    if(priceMatch) document.getElementById('amount-input').value = priceMatch[1].replace(',', '.');
+                    document.getElementById('vendor-input').value = "Parsed from Cloud";
+                 }
                  
                  submitBtn.disabled = false;
                  processBtn.innerText = "Re-Scan Document";

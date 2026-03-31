@@ -41,9 +41,17 @@ Follow these 5 simple steps to connect your GitHub Pages Web App to your bare Go
    - Click the unsafe link at the very bottom: `Go to Insurance Claims API (unsafe)`.
    - Click **Allow**.
 
-## 5. Copy your API URL
-1. You will be given a long **Web app URL** that ends in `/exec`.
-2. Copy this URL!
-3. Go to your new GitHub Pages web app, click the Settings Gear ⚙️ in the top right, and paste this URL into the input field.
+## 5. Add your Gemini API Key (Securely)
+1. In the Apps Script sidebar, click the **Project Settings** (gear icon ⚙️).
+2. Scroll down to **Script Properties**.
+3. Click **Add script property**.
+4. Property: `GEMINI_API_KEY`
+5. Value: (Paste your Gemini API Key here - get one for free at [aistudio.google.com](https://aistudio.google.com/)).
+6. Click **Save script properties**.
 
-**You are done! Your 100% free serverless architecture is perfectly linked.**
+## 6. Copy your API URL
+1. In the top right, go to **Deploy > Manage deployments**.
+2. Copy the **Web app URL** that ends in `/exec`.
+3. Go to your new GitHub Pages web app, click the Settings Gear ⚙️ in the top right, and paste this URL.
+
+**You are done! Your 100% free serverless architecture is perfectly linked with LLM capabilities.**

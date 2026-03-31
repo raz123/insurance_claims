@@ -23,70 +23,52 @@ self.onmessage = async function(event) {
 };
 
 async function processTransformersJs(base64Image, engineName) {
-    // Dynamic import of transformers.js (runs only when needed)
-    self.postMessage({ status: 'info', message: 'Importing ONNX Runtime...' });
+    self.postMessage({ status: 'info', message: 'Importing Transformers.js v3 (WebGPU)...' });
     
-    // In a real production app, we would use a bundler or import map. 
-    // Here we use the pre-built CDN version for the browser worker.
-    importScripts('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1');
+    // Using Transformers.js v3 (latest alpha/beta supports Florence-2 and GLM architecture better)
+    importScripts('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0-alpha.19');
 
-    const { env, pipeline, AutoProcessor, Florence2ForConditionalGeneration, RawImage } = self.transformers;
+    const { pipeline, env } = self.Transformers;
     
-    // Optimize for browser environments: Disable local models, use wasm
+    // WebGPU optimization
     env.allowLocalModels = false;
-    // For smaller downloads if needed (though florence is still >150mb)
-    env.backends.onnx.wasm.numThreads = 1;
 
     let resultData = { vendor: "", amount: "", date: "" };
 
-    if (engineName === 'florence') {
-        self.postMessage({ status: 'progress', message: 'Downloading Florence-2 Vision Model (~150MB). This happens once...' });
+    if (engineName === 'glm') {
+        self.postMessage({ status: 'progress', message: 'Loading GLM-OCR (0.9B) via WebGPU. This may take a moment...' });
         
         try {
-            // Note: Florence-2 isn't fully supported in official v2 @xenova branch easily, 
-            // usually requires v3 alphas with WebGPU. 
-            // For this mock plan, we simulate the complex init and fallback to a mock response if it fails.
+            // we use the specialized GLM-OCR pipeline if supported, or image-to-text
+            const modelId = 'brad-agi/glm-ocr-onnx-webgpu';
             
-            // Convert base64 to Blob to Image
-            const imgResponse = await fetch(base64Image);
-            const blob = await imgResponse.blob();
-            
-            self.postMessage({ status: 'info', message: 'Simulating Florence-2 inference for web worker...' });
-            
-            // SIMULATED INFERENCE TIME (Since Florence-2 is massive and requires v3 WebGPU)
-            await new Promise(resolve => setTimeout(resolve, 3000));
-            // Simulate extracting JSON
-            resultData.vendor = "Mock Vendor (Florence)";
-            resultData.amount = "142.50";
-            resultData.date = new Date().toISOString().split('T')[0];
-
-        } catch (e) {
-             throw new Error("Florence-2 execution error: " + e.message);
-        }
-
-    } else if (engineName === 'trocr') {
-        self.postMessage({ status: 'progress', message: 'Downloading TrOCR Model (~50MB)...' });
-        
-        try {
-            const processor = await pipeline('image-to-text', 'Xenova/trocr-small-handwritten', {
+            const vlm = await pipeline('image-to-text', modelId, {
+                device: 'webgpu', // Force WebGPU for high speed
                 progress_callback: x => {
                     if(x.status === 'downloading') {
-                        self.postMessage({ status: 'progress', message: `Downloading TrOCR: ${Math.round(x.progress)}%` });
+                        self.postMessage({ status: 'progress', message: `Downloading GLM-OCR: ${Math.round(x.progress)}%` });
                     }
                 }
             });
             
-            self.postMessage({ status: 'info', message: 'Running OCR...' });
-            const output = await processor(base64Image);
+            self.postMessage({ status: 'info', message: 'Running GLM-OCR Inference...' });
+            
+            // Ask the model for structured receipt data
+            const output = await vlm(base64Image, {
+                max_new_tokens: 128,
+                prompt: "Extract receipt info: Vendor, Total Amount, Date."
+            });
+            
             const rawText = output[0].generated_text;
             
-            // We got raw text, now run simple regex (mocked for now)
-            resultData.vendor = "Unknown (TrOCR Raw Text: " + rawText.substring(0,10) + ")";
-            resultData.amount = "0.00";
+            // Basic parsing of the LLM output
+            const amountMatch = rawText.match(/(\d+[.,]\d{2})/);
+            resultData.amount = amountMatch ? amountMatch[1].replace(',', '.') : "";
+            resultData.vendor = "GLM: " + rawText.substring(0, 20);
             resultData.date = new Date().toISOString().split('T')[0];
 
         } catch (e) {
-             throw new Error("TrOCR execution error: " + e.message);
+             throw new Error("GLM-OCR WebGPU error (Check if WebGPU is enabled): " + e.message);
         }
     }
 

@@ -10,6 +10,8 @@ function doPost(e) {
 
     if (action === "DRIVE_OCR") {
        return handleDriveHack(params);
+    } else if (action === "GEMINI_OCR") {
+       return handleGeminiOcr(params);
     } else if (action === "DATABASE_SAVE") {
        return handleDatabaseSave(params);
     } else {
@@ -53,6 +55,52 @@ function handleDriveHack(params) {
   return ContentService.createTextOutput(JSON.stringify({
     success: true,
     extractedText: mockExtractedText
+  })).setMimeType(ContentService.MimeType.JSON);
+}
+
+/**
+ * Gemini 1.5 Flash Intelligent OCR
+ */
+function handleGeminiOcr(params) {
+  const apiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+  
+  if (!apiKey) {
+    throw new Error("Gemini API Key not found in Script Properties. Please add GEMINI_API_KEY.");
+  }
+
+  const apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
+  
+  const payload = {
+    contents: [{
+      parts: [
+        { text: "Accurately extract following JSON from this receipt image: {vendor: string, amount: number, date: string (YYYY-MM-DD)}. Only return JSON." },
+        { inline_data: { mime_type: "image/jpeg", data: params.imageBase64 } }
+      ]
+    }]
+  };
+
+  const options = {
+    method: "POST",
+    contentType: "application/json",
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  };
+
+  const response = UrlFetchApp.fetch(apiUrl, options);
+  const json = JSON.parse(response.getContentText());
+  
+  if (response.getResponseCode() !== 200) {
+    throw new Error("Gemini API Error: " + (json.error ? json.error.message : response.getContentText()));
+  }
+
+  let textResult = json.candidates[0].content.parts[0].text;
+  // Clean markdown if present
+  textResult = textResult.replace(/```json|```/g, "").trim();
+  const extractedData = JSON.parse(textResult);
+
+  return ContentService.createTextOutput(JSON.stringify({
+    success: true,
+    data: extractedData
   })).setMimeType(ContentService.MimeType.JSON);
 }
 
