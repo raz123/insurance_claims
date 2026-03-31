@@ -1,5 +1,5 @@
-console.log('[Worker] Global Init: v1.3.1');
-import { AutoTokenizer, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.1-alpha.0/dist/transformers.min.js';
+console.log('[Worker] Global Init: v1.3.2');
+import { AutoTokenizer, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.2.1/dist/transformers.js';
 import * as ort from 'https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.webgpu.min.mjs';
 
 // Configuration for GLM-OCR (brad-agi/glm-ocr-onnx-webgpu)
