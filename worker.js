@@ -104,7 +104,7 @@ async function runInference(imageBase64) {
     const mergedEmbeds = mergeVisionTokens(visionOutput.output);
     
     // 4. Tokenization
-    const prompt = "Extract receipt info: Vendor, Total Amount, Date.";
+    const prompt = "请按下列JSON格式输出图中信息:\n{ \"vendor\": \"\", \"amount\": \"\", \"date\": \"\" }";
     const { input_ids } = await tokenizer(prompt);
     const textIds = Array.from(input_ids.data);
     
