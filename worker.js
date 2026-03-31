@@ -180,12 +180,39 @@ async function prepareImageTensor(base64) {
 }
 
 function mergeVisionTokens(tensor) {
-    const [batch, seq, dim] = tensor.dims; // [1, 576, 1176]
+    const [batch, seq, dim] = tensor.dims; 
+    console.log(`[Worker] Vision Output Shape: [${batch}, ${seq}, ${dim}]`);
+    
+    if (seq === 144) {
+        console.log('[Worker] Vision already merged (144 tokens).');
+        return tensor;
+    }
+
+    // Manual Spatial Merge (2x2 pooling)
+    // GLM Grid is 24x24 = 576. Language model expects 12x12 = 144.
+    console.log('[Worker] Performing 2x2 Spatial Merge...');
     const data = tensor.data;
-    const mergedData = new Float32Array(batch * 144 * dim * 4);
-    // Simple 2x2 concat merge logic
-    // This is a placeholder for the actual spatial merge math
-    return new ort.Tensor('float32', new Float32Array(1 * 144 * 1536), [1, 144, 1536]);
+    const mergedData = new Float32Array(batch * 144 * dim);
+    
+    for (let b = 0; b < batch; b++) {
+        for (let r = 0; r < 12; r++) {
+            for (let c = 0; c < 12; c++) {
+                const targetIdx = (b * 144 + r * 12 + c) * dim;
+                // Sum 2x2 block from 24x24 grid
+                for (let i = 0; i < 2; i++) {
+                    for (let j = 0; j < 2; j++) {
+                        const sourceR = r * 2 + i;
+                        const sourceC = c * 2 + j;
+                        const sourceIdx = (b * 576 + sourceR * 24 + sourceC) * dim;
+                        for (let k = 0; k < dim; k++) {
+                            mergedData[targetIdx + k] += data[sourceIdx + k] / 4.0;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return new ort.Tensor('float32', mergedData, [batch, 144, dim]);
 }
 
 function generate3DPositionIds(seqLen, promptLen, offset = 0) {
