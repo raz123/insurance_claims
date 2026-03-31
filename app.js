@@ -1,10 +1,11 @@
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('App Version: 1.3.5');
+    console.log('App Version: 1.3.6');
     const settingsBtn = document.getElementById('settings-btn');
     const settingsModal = document.getElementById('settings-modal');
     const saveSettingsBtn = document.getElementById('save-settings-btn');
-    const engineSelect = document.getElementById('engine-select');
+    const clearCacheBtn = document.getElementById('clear-cache-btn');
     const scriptUrlInput = document.getElementById('apps-script-url');
+    const localModelPicker = document.getElementById('local-model-picker');
     
     const imagePreviewArea = document.getElementById('image-preview');
     const cameraInput = document.getElementById('camera-input');
@@ -21,11 +22,11 @@ document.addEventListener('DOMContentLoaded', () => {
     loadSettings();
 
     // --- 3. SETTINGS LOGIC ---
-    settingsBtn.addEventListener('click', () => {
+    settingsBtn.addEventListener('click', async () => {
         settingsModal.classList.add('active');
+        await checkCacheStatus();
     });
 
-    // Close modal if clicking outside
     settingsModal.addEventListener('click', (e) => {
         if(e.target === settingsModal) {
             settingsModal.classList.remove('active');
@@ -33,36 +34,42 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     saveSettingsBtn.addEventListener('click', () => {
-        localStorage.setItem('ocrEngine', engineSelect.value);
         localStorage.setItem('scriptUrl', scriptUrlInput.value);
         settingsModal.classList.remove('active');
     });
 
-    // Add Clear Cache Button Dynamically
-    const clearCacheBtn = document.createElement('button');
-    clearCacheBtn.innerText = "Clear Local AI Cache";
-    clearCacheBtn.className = "btn-secondary";
-    clearCacheBtn.style.marginTop = "15px";
-    clearCacheBtn.style.width = "100%";
     clearCacheBtn.onclick = async () => {
         const { clearCache } = await import('./db-storage.js');
         await clearCache();
-        alert("Local AI cache cleared. Next run will re-download models.");
+        alert("Cache cleared. Redownload will start on next scan.");
+        await checkCacheStatus();
     };
-    settingsModal.querySelector('.modal-content').appendChild(clearCacheBtn);
+
+    async function checkCacheStatus() {
+        const { listStoredModels } = await import('./db-storage.js');
+        const stored = await listStoredModels();
+        const items = document.querySelectorAll('.status-item');
+        
+        items.forEach(item => {
+            const fileName = item.getAttribute('data-file');
+            const badge = item.querySelector('.badge');
+            if (stored.includes(fileName)) {
+                badge.innerText = "Cached";
+                badge.className = "badge cached";
+            } else {
+                badge.innerText = "Missing";
+                badge.className = "badge missing";
+            }
+        });
+    }
 
     function loadSettings() {
-        const savedEngine = localStorage.getItem('ocrEngine') || 'glm';
         const savedUrl = localStorage.getItem('scriptUrl') || '';
-        engineSelect.value = savedEngine;
         scriptUrlInput.value = savedUrl;
-        
-        // Auto set Date to today
         document.getElementById('date-input').value = new Date().toISOString().split('T')[0];
     }
 
     // Handle Local Model Picker
-    const localModelPicker = document.getElementById('local-model-picker');
     localModelPicker.addEventListener('change', async (e) => {
         const files = e.target.files;
         if (!files.length) return;
@@ -148,7 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
     processBtn.addEventListener('click', async () => {
         if (!currentImageBase64) return;
 
-        const engine = localStorage.getItem('ocrEngine') || 'glm';
+        const engine = 'glm';
         
         processBtn.classList.add('hidden');
         loadingIndicator.classList.remove('hidden');
@@ -159,8 +166,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function runWebWorkerAI(engine) {
         if (!ocrWorker) {
              console.log('[App] Instantiating custom GLM worker...');
-             // Cache busting version 1.3.2
-             ocrWorker = new Worker('worker.js?v=v1.3.5', { type: 'module' });
+             // Cache busting version 1.3.6
+             ocrWorker = new Worker('worker.js?v=v1.3.6', { type: 'module' });
              
              ocrWorker.onmessage = (e) => {
                  const { status, message, percent, file, text, data, error } = e.data;

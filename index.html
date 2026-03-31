@@ -22,22 +22,53 @@
         <!-- Dynamic Settings Modal -->
         <div id="settings-modal" class="modal">
             <div class="modal-content glass-card">
-                <h3>OCR Engine Settings</h3>
-                <p class="subtitle">Select your image processor.</p>
-                <select id="engine-select" class="form-input">
-                    <option value="glm" selected>Local GLM-OCR (WebGPU - High Fidelity)</option>
-                </select>
-                <div class="input-group">
-                    <label for="apps-script-url">Google Apps Script Web App URL</label>
-                    <input type="text" id="apps-script-url" class="form-input" placeholder="https://script.google.com/.../exec">
+                <h3>Settings & AI Configuration</h3>
+                
+                <section class="settings-section">
+                    <h4>Cloud Integration</h4>
+                    <div class="setting-item">
+                        <label>Google Apps Script URL</label>
+                        <input type="text" id="apps-script-url" placeholder="https://script.google.com/.../exec">
+                    </div>
+                </section>
+
+                <section class="settings-section">
+                    <h4>Local AI Storage (Browser)</h4>
+                    <div id="model-status-grid" class="status-grid">
+                        <!-- Dynamic status items -->
+                        <div class="status-item" data-file="vision_encoder_int8.onnx">
+                            <span>Vision Encoder</span>
+                            <span class="badge">Checking...</span>
+                        </div>
+                        <div class="status-item" data-file="language_model_int8.onnx">
+                            <span>Language Decoder</span>
+                            <span class="badge">Checking...</span>
+                        </div>
+                        <div class="status-item" data-file="text_embeddings.onnx">
+                            <span>Embeddings</span>
+                            <span class="badge">Checking...</span>
+                        </div>
+                        <div class="status-item" data-file="prefill_int8.onnx">
+                            <span>KV Prefill</span>
+                            <span class="badge">Checking...</span>
+                        </div>
+                        <div class="status-item" data-file="decode_int8.onnx">
+                            <span>KV Decode</span>
+                            <span class="badge">Checking...</span>
+                        </div>
+                    </div>
+                    
+                    <div class="setting-item" style="margin-top:15px;">
+                        <label>Advanced: Manual Side-Load</label>
+                        <input type="file" id="local-model-picker" multiple accept=".onnx">
+                        <p class="hint">Select the 5 .onnx files from your computer to skip downloads.</p>
+                    </div>
+                </section>
+
+                <div class="modal-footer">
+                    <button id="clear-cache-btn" class="btn-danger">Clear Cache</button>
+                    <button id="save-settings-btn" class="btn-primary">Save & Exit</button>
                 </div>
-                <div class="setting-item">
-                <label>Manual Model Upload (Offline Mode)</label>
-                <input type="file" id="local-model-picker" multiple accept=".onnx">
-                <p class="hint">Select all 5 .onnx files from your computer to store them in browser memory.</p>
-            </div>
-            
-            <button id="save-settings-btn" class="btn-primary">Save Settings</button>
             </div>
         </div>
 

@@ -1,4 +1,4 @@
-console.log('[Worker] Global Init: v1.3.5');
+console.log('[Worker] Global Init: v1.3.6');
 import { AutoTokenizer, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.2.1/dist/transformers.js';
 import * as ort from 'https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.webgpu.min.mjs';
 import { getModel, setModel } from './db-storage.js';
@@ -18,7 +18,7 @@ const CONFIG = {
     }
 };
 
-const BASE_URL = 'https://huggingface.co/brad-agi/glm-ocr-onnx-webgpu/resolve/main/onnx/';
+const BASE_URL = 'https://huggingface.co/brad-agi/glm-ocr-onnx-webgpu/resolve/main/';
 const FILES = {
     vision: 'vision_encoder_int8.onnx',
     language: 'language_model_int8.onnx',
