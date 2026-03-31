@@ -39,39 +39,39 @@ async function processTransformersJs(base64Image, engineName) {
     let resultData = { vendor: "", amount: "", date: "" };
 
     if (engineName === 'glm') {
-        self.postMessage({ status: 'progress', message: 'Loading GLM-OCR (0.9B) via WebGPU. This may take a moment...' });
+        self.postMessage({ status: 'progress', message: 'Loading Florence-2 Base via WebGPU. This may take a moment...' });
         
         try {
-            // we use the specialized GLM-OCR pipeline if supported, or image-to-text
-            const modelId = 'brad-agi/glm-ocr-onnx-webgpu';
+            // we use Florence-2 which is fully supported by Transformers.js v3 webgpu pipeline natively
+            const modelId = 'onnx-community/Florence-2-base-ft';
             
             const vlm = await pipeline('image-to-text', modelId, {
                 device: 'webgpu', // Force WebGPU for high speed
                 progress_callback: x => {
                     if(x.status === 'downloading') {
-                        self.postMessage({ status: 'progress', message: `Downloading GLM-OCR: ${Math.round(x.progress)}%` });
+                        self.postMessage({ status: 'progress', message: `Downloading Model: ${Math.round(x.progress)}%` });
                     }
                 }
             });
             
-            self.postMessage({ status: 'info', message: 'Running GLM-OCR Inference...' });
+            self.postMessage({ status: 'info', message: 'Running GPU Inference...' });
             
-            // Ask the model for structured receipt data
+            // Florence-2 expects task prompts inside angle brackets
             const output = await vlm(base64Image, {
                 max_new_tokens: 128,
-                prompt: "Extract receipt info: Vendor, Total Amount, Date."
+                prompt: "<OCR>"
             });
             
             const rawText = output[0].generated_text;
             
-            // Basic parsing of the LLM output
+            // Basic parsing of the raw string output
             const amountMatch = rawText.match(/(\d+[.,]\d{2})/);
             resultData.amount = amountMatch ? amountMatch[1].replace(',', '.') : "";
-            resultData.vendor = "GLM: " + rawText.substring(0, 20);
+            resultData.vendor = "Local AI: " + rawText.substring(0, 15);
             resultData.date = new Date().toISOString().split('T')[0];
 
         } catch (e) {
-             throw new Error("GLM-OCR WebGPU error (Check if WebGPU is enabled): " + e.message);
+             throw new Error("WebGPU error (Check if WebGPU is enabled in browser): " + e.message);
         }
     }
 
