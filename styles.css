@@ -165,84 +165,109 @@ label {
 .form-input:focus { border-color: var(--primary-color); }
 select.form-input { appearance: none; }
 
-/* Modals & Overlays */
-.overlay, .modal {
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    background: rgba(0,0,0,0.8);
-    backdrop-filter: blur(8px);
-    display: none;
+/* AI Engine & Storage Dashboard */
+.dashboard-card {
+    margin-bottom: 25px;
+    padding: 20px;
+    border: 1px solid var(--border-color);
+}
+
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
     align-items: center;
-    justify-content: center;
-    z-index: 1000;
-}
-.modal.active { display: flex; }
-
-.modal-content {
-    width: 90%;
-    max-width: 500px;
-    padding: 30px;
+    margin-bottom: 15px;
 }
 
-.settings-section {
-    margin-top: 20px;
-    padding-top: 15px;
-    border-top: 1px solid var(--border-color);
-}
-
-.settings-section h4 {
-    font-size: 0.9rem;
+.dashboard-header h3 {
+    font-size: 0.95rem;
     color: var(--primary-color);
-    margin-bottom: 12px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.header-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.btn-text {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 0.75rem;
+    cursor: pointer;
+    text-decoration: underline;
 }
 
 .status-grid {
     display: grid;
-    grid-template-columns: 1fr;
-    gap: 10px;
-    background: rgba(0,0,0,0.2);
-    padding: 15px;
-    border-radius: 12px;
-    border: 1px solid var(--border-color);
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
 }
 
 .status-item {
+    background: rgba(255,255,255,0.03);
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 0.85rem;
+}
+
+.file-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.file-name {
+    font-size: 0.8rem;
+    font-weight: 500;
 }
 
 .badge {
-    padding: 4px 8px;
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    width: fit-content;
+}
+
+.sideload-btn {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border-color);
     border-radius: 6px;
-    font-size: 0.7rem;
-    font-weight: bold;
-    text-transform: uppercase;
-}
-.badge.missing { background: rgba(255,50,50,0.1); color: #ff5555; border: 1px solid #ff5555; }
-.badge.cached { background: rgba(50,255,50,0.1); color: #55ff55; border: 1px solid #55ff55; }
-
-.modal-footer {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 25px;
-    gap: 10px;
-}
-
-.btn-danger {
-    background: rgba(255,0,0,0.1);
-    color: #ff4444;
-    border: 1px solid #ff4444;
-    padding: 10px 15px;
-    border-radius: 10px;
+    padding: 6px;
     cursor: pointer;
+    transition: all 0.2s;
+    font-size: 1rem;
 }
 
-.btn-primary { width: 100%; }
+.sideload-btn:hover {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+}
+
+.cloud-settings {
+    border-top: 1px solid var(--border-color);
+    padding-top: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.cloud-settings label {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
 
 /* Security PIN Overlay specific */
 .pin-display {

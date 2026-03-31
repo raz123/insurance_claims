@@ -1,12 +1,18 @@
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('App Version: 1.3.6');
-    const settingsBtn = document.getElementById('settings-btn');
-    const settingsModal = document.getElementById('settings-modal');
-    const saveSettingsBtn = document.getElementById('save-settings-btn');
+    console.log('App Version: 1.3.7');
+    const refreshStatusBtn = document.getElementById('refresh-status-btn');
     const clearCacheBtn = document.getElementById('clear-cache-btn');
     const scriptUrlInput = document.getElementById('apps-script-url');
-    const localModelPicker = document.getElementById('local-model-picker');
     
+    // Individual Sideloaders
+    const sideloaders = {
+        'upload-vision': 'vision_encoder_int8.onnx',
+        'upload-language': 'language_model_int8.onnx',
+        'upload-embeds': 'text_embeddings.onnx',
+        'upload-prefill': 'prefill_int8.onnx',
+        'upload-decode': 'decode_int8.onnx'
+    };
+
     const imagePreviewArea = document.getElementById('image-preview');
     const cameraInput = document.getElementById('camera-input');
     const receiptImg = document.getElementById('receipt-img');
@@ -20,30 +26,40 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 2. INITIALIZATION ---
     loadSettings();
+    checkCacheStatus();
 
-    // --- 3. SETTINGS LOGIC ---
-    settingsBtn.addEventListener('click', async () => {
-        settingsModal.classList.add('active');
-        await checkCacheStatus();
-    });
-
-    settingsModal.addEventListener('click', (e) => {
-        if(e.target === settingsModal) {
-            settingsModal.classList.remove('active');
-        }
-    });
-
-    saveSettingsBtn.addEventListener('click', () => {
+    // --- 3. DASHBOARD LOGIC ---
+    refreshStatusBtn.addEventListener('click', () => checkCacheStatus());
+    
+    scriptUrlInput.addEventListener('input', () => {
         localStorage.setItem('scriptUrl', scriptUrlInput.value);
-        settingsModal.classList.remove('active');
     });
 
     clearCacheBtn.onclick = async () => {
+        if (!confirm("Are you sure? This will delete all locally stored AI models.")) return;
         const { clearCache } = await import('./db-storage.js');
         await clearCache();
-        alert("Cache cleared. Redownload will start on next scan.");
+        alert("Cache cleared.");
         await checkCacheStatus();
     };
+
+    // Attach Sideload Listeners
+    Object.keys(sideloaders).forEach(id => {
+        const input = document.getElementById(id);
+        input.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const name = sideloaders[id];
+            const buffer = await file.arrayBuffer();
+            
+            const { setModel } = await import('./db-storage.js');
+            await setModel(name, buffer);
+            
+            alert(`${name} stored locally.`);
+            await checkCacheStatus();
+        });
+    });
 
     async function checkCacheStatus() {
         const { listStoredModels } = await import('./db-storage.js');
@@ -68,31 +84,6 @@ document.addEventListener('DOMContentLoaded', () => {
         scriptUrlInput.value = savedUrl;
         document.getElementById('date-input').value = new Date().toISOString().split('T')[0];
     }
-
-    // Handle Local Model Picker
-    localModelPicker.addEventListener('change', async (e) => {
-        const files = e.target.files;
-        if (!files.length) return;
-
-        const buffers = {};
-        for (const file of files) {
-            // Match filenames exactly as worker expects them
-            const name = file.name;
-            const buffer = await file.arrayBuffer();
-            buffers[name] = buffer;
-        }
-
-        if (!ocrWorker) {
-            runWebWorkerAI('glm'); // Instantiate if needed
-        }
-
-        ocrWorker.postMessage({ 
-            action: 'LOAD_MODELS', 
-            files: buffers 
-        }, Object.values(buffers)); // Transferable buffers
-        
-        alert("Models being stored locally. You can now use the app offline.");
-    });
     let currentImageBase64 = null;
 
     imagePreviewArea.addEventListener('click', () => {

@@ -16,64 +16,69 @@
         
         <header class="app-header">
             <h1>New Claim</h1>
-            <button id="settings-btn" class="icon-btn" aria-label="Settings">⚙️</button>
         </header>
 
-        <!-- Dynamic Settings Modal -->
-        <div id="settings-modal" class="modal">
-            <div class="modal-content glass-card">
-                <h3>Settings & AI Configuration</h3>
-                
-                <section class="settings-section">
-                    <h4>Cloud Integration</h4>
-                    <div class="setting-item">
-                        <label>Google Apps Script URL</label>
-                        <input type="text" id="apps-script-url" placeholder="https://script.google.com/.../exec">
-                    </div>
-                </section>
-
-                <section class="settings-section">
-                    <h4>Local AI Storage (Browser)</h4>
-                    <div id="model-status-grid" class="status-grid">
-                        <!-- Dynamic status items -->
-                        <div class="status-item" data-file="vision_encoder_int8.onnx">
-                            <span>Vision Encoder</span>
-                            <span class="badge">Checking...</span>
-                        </div>
-                        <div class="status-item" data-file="language_model_int8.onnx">
-                            <span>Language Decoder</span>
-                            <span class="badge">Checking...</span>
-                        </div>
-                        <div class="status-item" data-file="text_embeddings.onnx">
-                            <span>Embeddings</span>
-                            <span class="badge">Checking...</span>
-                        </div>
-                        <div class="status-item" data-file="prefill_int8.onnx">
-                            <span>KV Prefill</span>
-                            <span class="badge">Checking...</span>
-                        </div>
-                        <div class="status-item" data-file="decode_int8.onnx">
-                            <span>KV Decode</span>
-                            <span class="badge">Checking...</span>
-                        </div>
-                    </div>
-                    
-                    <div class="setting-item" style="margin-top:15px;">
-                        <label>Advanced: Manual Side-Load</label>
-                        <input type="file" id="local-model-picker" multiple accept=".onnx">
-                        <p class="hint">Select the 5 .onnx files from your computer to skip downloads.</p>
-                    </div>
-                </section>
-
-                <div class="modal-footer">
-                    <button id="clear-cache-btn" class="btn-danger">Clear Cache</button>
-                    <button id="save-settings-btn" class="btn-primary">Save & Exit</button>
+        <!-- AI Engine & Storage Dashboard -->
+        <section id="ai-dashboard" class="glass-card dashboard-card">
+            <div class="dashboard-header">
+                <h3><i class="icon-cpu"></i> AI Engine & Local Storage</h3>
+                <div class="header-actions">
+                    <button id="clear-cache-btn" class="btn-text">Clear All Cache</button>
+                    <button id="refresh-status-btn" class="icon-btn" title="Refresh Status">🔄</button>
                 </div>
             </div>
-        </div>
+            
+            <div class="status-grid">
+                <div class="status-item" data-file="vision_encoder_int8.onnx">
+                    <div class="file-info">
+                        <span class="file-name">Vision Encoder</span>
+                        <span class="badge">Checking...</span>
+                    </div>
+                    <button class="sideload-btn" onclick="document.getElementById('upload-vision').click()">📂</button>
+                    <input type="file" id="upload-vision" class="hidden" accept=".onnx">
+                </div>
+                <div class="status-item" data-file="language_model_int8.onnx">
+                    <div class="file-info">
+                        <span class="file-name">Language Decoder</span>
+                        <span class="badge">Checking...</span>
+                    </div>
+                    <button class="sideload-btn" onclick="document.getElementById('upload-language').click()">📂</button>
+                    <input type="file" id="upload-language" class="hidden" accept=".onnx">
+                </div>
+                <div class="status-item" data-file="text_embeddings.onnx">
+                    <div class="file-info">
+                        <span class="file-name">Embeddings</span>
+                        <span class="badge">Checking...</span>
+                    </div>
+                    <button class="sideload-btn" onclick="document.getElementById('upload-embeds').click()">📂</button>
+                    <input type="file" id="upload-embeds" class="hidden" accept=".onnx">
+                </div>
+                <div class="status-item" data-file="prefill_int8.onnx">
+                    <div class="file-info">
+                        <span class="file-name">KV Prefill</span>
+                        <span class="badge">Checking...</span>
+                    </div>
+                    <button class="sideload-btn" onclick="document.getElementById('upload-prefill').click()">📂</button>
+                    <input type="file" id="upload-prefill" class="hidden" accept=".onnx">
+                </div>
+                <div class="status-item" data-file="decode_int8.onnx">
+                    <div class="file-info">
+                        <span class="file-name">KV Decode</span>
+                        <span class="badge">Checking...</span>
+                    </div>
+                    <button class="sideload-btn" onclick="document.getElementById('upload-decode').click()">📂</button>
+                    <input type="file" id="upload-decode" class="hidden" accept=".onnx">
+                </div>
+            </div>
 
-        <!-- Camera Upload Section -->
-        <section class="upload-section">
+            <div class="cloud-settings">
+                <label>Apps Script URL:</label>
+                <input type="text" id="apps-script-url" class="form-input" placeholder="https://script.google.com/.../exec">
+            </div>
+        </section>
+
+        <!-- Main Workspace -->
+        <main class="main-container">
             <div class="image-preview" id="image-preview">
                 <span id="preview-placeholder">📷 Tap to snap receipt</span>
                 <img id="receipt-img" style="display: none;" alt="Receipt Preview">
