@@ -1,3 +1,4 @@
+console.log('[Worker] Global Init: v1.1');
 import { AutoTokenizer, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@3.0.0-alpha.19';
 import * as ort from 'https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.webgpu.min.mjs';
 
