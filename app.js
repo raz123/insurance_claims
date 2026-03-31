@@ -120,7 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function runWebWorkerAI(engine) {
         if (!ocrWorker) {
-             ocrWorker = new Worker('worker.js', { type: 'module' });
+             ocrWorker = new Worker('worker.js?v=glm-custom-v1', { type: 'module' });
         }
 
         loadingText.innerText = "Initializing Local AI Inference...";
