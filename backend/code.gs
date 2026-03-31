@@ -94,9 +94,25 @@ function handleGeminiOcr(params) {
   }
 
   let textResult = json.candidates[0].content.parts[0].text;
-  // Clean markdown if present
-  textResult = textResult.replace(/```json|```/g, "").trim();
-  const extractedData = JSON.parse(textResult);
+  let extractedData = { vendor: "Unknown", amount: "0.00", date: "" };
+  
+  try {
+     // Clean markdown if present
+     let cleanText = textResult.replace(/```json|```/g, "").trim();
+     
+     // Sometimes Gemini returns unstructured text before the JSON block
+     const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
+     if (jsonMatch) {
+         extractedData = JSON.parse(jsonMatch[0]);
+     } else {
+         throw new Error("No JSON structure found");
+     }
+  } catch (e) {
+     // Fallback text parsing if Gemini failed to output strict JSON
+     const priceMatch = textResult.match(/\$?\s*(\d{1,4}[.,]\d{2})/);
+     if(priceMatch) extractedData.amount = priceMatch[1].replace(',', '.');
+     extractedData.vendor = "Gemini Text Fallback";
+  }
 
   return ContentService.createTextOutput(JSON.stringify({
     success: true,

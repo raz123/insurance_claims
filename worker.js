@@ -24,11 +24,14 @@ self.onmessage = async function(event) {
 
 async function processTransformersJs(base64Image, engineName) {
     self.postMessage({ status: 'info', message: 'Importing Transformers.js v3 (WebGPU)...' });
-    
-    // Using Transformers.js v3 (latest alpha/beta supports Florence-2 and GLM architecture better)
-    importScripts('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0-alpha.19');
-
-    const { pipeline, env } = self.Transformers;
+    let pipeline, env;
+    try {
+        const hf = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0-alpha.19');
+        pipeline = hf.pipeline;
+        env = hf.env;
+    } catch(err) {
+        throw new Error("Failed to load Transformers.js WebGPU module: " + err.message);
+    }
     
     // WebGPU optimization
     env.allowLocalModels = false;
@@ -80,8 +83,13 @@ async function processTransformersJs(base64Image, engineName) {
 async function processTesseractJs(base64Image) {
     self.postMessage({ status: 'progress', message: 'Loading Tesseract.js (20MB)...' });
     
-    // Import Tesseract.js
-    importScripts('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js');
+    let Tesseract;
+    try {
+        const tesseractModule = await import('https://cdn.jsdelivr.net/npm/tesseract.js@5/+esm');
+        Tesseract = tesseractModule.default || tesseractModule;
+    } catch(err) {
+        throw new Error("Failed to load Tesseract.js: " + err.message);
+    }
     
     try {
         const worker = await Tesseract.createWorker('eng', 1, {

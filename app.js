@@ -188,7 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function runWebWorkerAI(engine) {
         if (!ocrWorker) {
-             ocrWorker = new Worker('worker.js');
+             ocrWorker = new Worker('worker.js', { type: 'module' });
         }
 
         loadingText.innerText = "Initializing Local AI Inference...";
